@@ -1,0 +1,29 @@
+datasource db {
+  provider  = "postgresql"   // 💡 Diubah dari "sqlite" menjadi "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL") // 💡 Ditambahkan untuk membaca koneksi langsung Supabase
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model Menu {
+  id        Int      @id @default(autoincrement())
+  kode      String   @unique
+  nama      String
+  kategori  String
+  harga     Float
+  status    String   @default("Tersedia")
+  createdAt DateTime @default(now())
+}
+
+model Transaction {
+  id            Int      @id @default(autoincrement())
+  receiptNumber String   @unique
+  items         String   // Kita simpan array item sebagai JSON string
+  subtotal      Float
+  pajak         Float
+  grandTotal    Float
+  timestamp     DateTime @default(now())
+}

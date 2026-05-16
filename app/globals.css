@@ -1,0 +1,27 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@media print {
+  /* Sembunyikan semua elemen di layar kecuali area struk */
+  body * {
+    visibility: hidden;
+  }
+  #printable-receipt, #printable-receipt * {
+    visibility: visible;
+  }
+  #printable-receipt {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 58mm; /* Sesuaikan ke 80mm jika menggunakan printer besar */
+    font-family: 'Courier New', Courier, monospace;
+    font-size: 11px;
+    line-height: 1.2;
+    color: #000;
+  }
+  /* Hapus margin halaman default browser (header/footer tanggal & URL) */
+  @page {
+    margin: 0;
+  }
+}
