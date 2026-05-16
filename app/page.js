@@ -273,8 +273,8 @@ export default function LayarKasirPage() {
         <div id="thermal-receipt-area" style={{ fontSize: '12px', lineHeight: '1.2' }}>
           <div style={{ textAlign: 'center', marginBottom: '10px' }}>
             <h3 style={{ margin: '0 0 2px 0', fontSize: '15px', fontWeight: 'bold' }}>INDORAMEN</h3>
-            <p style={{ margin: 0, fontSize: '11px' }}>PNM KITCHEN</p>
-            <p style={{ margin: 0, fontSize: '10px' }}>Jakarta, Indonesia</p>
+            <p style={{ margin: 0, fontSize: '11px' }}>RUKO PMM</p>
+            <p style={{ margin: 0, fontSize: '10px' }}>Jl. Boulevard Kalimaya 2, Curug Badak, Kec. Maja, Kabupaten Lebak, Banten 42381</p>
             <p style={{ margin: '5px 0 0 0' }}>--------------------------------</p>
           </div>
           
