@@ -21,9 +21,18 @@ model Menu {
 model Transaction {
   id            Int      @id @default(autoincrement())
   receiptNumber String   @unique
-  items         String   // Kita simpan array item sebagai JSON string
+  items         String   // Kita simpan array item (termasuk topping pilihan) sebagai JSON string
   subtotal      Float
   pajak         Float
   grandTotal    Float
   timestamp     DateTime @default(now())
+}
+
+// 💡 TABEL BARU: Master data topping sesuai brosur menu Indoramen
+model Topping {
+  id        Int      @id @default(autoincrement())
+  nama      String   @unique
+  harga     Float
+  status    String   @default("Tersedia")
+  createdAt DateTime @default(now())
 }

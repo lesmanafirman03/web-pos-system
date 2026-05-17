@@ -2,15 +2,18 @@ const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
 
 async function main() {
-  console.log('Memulai proses seeder data menu INDORAMEN...');
+  console.log('⏳ Memulai proses seeder total data INDORAMEN...');
 
-  // Bersihkan data menu lama terlebih dahulu agar tidak duplikat saat dijalankan ulang
+  // 1. Bersihkan data lama terlebih dahulu agar tidak duplikat saat dijalankan ulang
   await prisma.menu.deleteMany({});
+  await prisma.topping.deleteMany({});
+  console.log('🗑️ Data lama di tabel Menu & Topping telah dibersihkan.');
 
+  // ========================================================
+  // MASTER DATA 1: DAFTAR MENU UTAMA
+  // ========================================================
   const daftarMenu = [
-    // ==========================================
     // 1. KATEGORI: MAKANAN (Indo Ramen & Mie)
-    // ==========================================
     { kode: 'M001', nama: 'Indo Ramen Original - LVL 0', kategori: 'Makanan', harga: 10000 },
     { kode: 'M002', nama: 'Indo Ramen Original - LVL 0,5 - 1', kategori: 'Makanan', harga: 11000 },
     { kode: 'M003', nama: 'Indo Ramen Original - LVL 2 - 3', kategori: 'Makanan', harga: 12000 },
@@ -54,9 +57,7 @@ async function main() {
     { kode: 'M035', nama: 'Mie Seblak - LVL 3 - 4', kategori: 'Makanan', harga: 9000 },
     { kode: 'M036', nama: 'Mie Seblak - LVL 5 - 6', kategori: 'Makanan', harga: 10000 },
 
-    // ==========================================
     // 2. KATEGORI: CEMILAN (Side Dish)
-    // ==========================================
     { kode: 'C001', nama: 'Corndog Original', kategori: 'Cemilan', harga: 12000 },
     { kode: 'C002', nama: 'Corndog Coklat', kategori: 'Cemilan', harga: 13000 },
     { kode: 'C003', nama: 'Corndog Tiramisu', kategori: 'Cemilan', harga: 13000 },
@@ -68,9 +69,7 @@ async function main() {
     { kode: 'C009', nama: 'Sosis Jumbo Goreng', kategori: 'Cemilan', harga: 10000 },
     { kode: 'C010', nama: 'Bakso Goreng', kategori: 'Cemilan', harga: 10000 },
 
-    // ==========================================
     // 3. KATEGORI: MINUMAN (Beverages)
-    // ==========================================
     { kode: 'D001', nama: 'Teh Tawar (Hot)', kategori: 'Minuman', harga: 3000 },
     { kode: 'D002', nama: 'Teh Tawar (Ice)', kategori: 'Minuman', harga: 4000 },
     { kode: 'D003', nama: 'Teh Manis (Hot)', kategori: 'Minuman', harga: 5000 },
@@ -95,7 +94,7 @@ async function main() {
     { kode: 'D022', nama: 'Mineral Water', kategori: 'Minuman', harga: 5000 },
     { kode: 'D023', nama: 'Milo (Hot)', kategori: 'Minuman', harga: 5000 },
     { kode: 'D024', nama: 'Milo (Ice)', kategori: 'Minuman', harga: 7000 },
-    { kode: 'D025', nama: 'Extra Joss', kategori: 'Minuman', harga: 6000 },
+    { kode: 'D025', carriage: 'Extra Joss', nama: 'Extra Joss', kategori: 'Minuman', harga: 6000 },
     { kode: 'D026', nama: 'Kopi Hitam Panas', kategori: 'Minuman', harga: 5000 },
     { kode: 'D027', nama: 'Kopi Susu Panas', kategori: 'Minuman', harga: 5000 },
     { kode: 'D028', nama: 'Kopi Luwak (Hot)', kategori: 'Minuman', harga: 5000 },
@@ -111,37 +110,59 @@ async function main() {
     { kode: 'D038', nama: 'Good Day Cappucino (Hot)', kategori: 'Minuman', harga: 5000 },
     { kode: 'D039', nama: 'Good Day Cappucino (Ice)', kategori: 'Minuman', harga: 7000 },
     { kode: 'D040', nama: 'Americano (Hot)', kategori: 'Minuman', harga: 5000 },
-    { kode: 'D041', nama: 'Americano (Ice)', kategori: 'Minuman', harga: 7000 },
-
-    // ==========================================
-    // 4. KATEGORI: TOPPING (Tambahan Mie)
-    // ==========================================
-    { kode: 'T001', nama: 'Siomay Kering/Lidah', kategori: 'Topping', harga: 3000 },
-    { kode: 'T002', nama: 'Mayo', kategori: 'Topping', harga: 3000 },
-    { kode: 'T003', nama: 'Pilus Cikur', kategori: 'Topping', harga: 3000 },
-    { kode: 'T004', nama: 'Keju Parut', kategori: 'Topping', harga: 3000 },
-    { kode: 'T005', nama: 'Chikuwa/Crabstick', kategori: 'Topping', harga: 3000 },
-    { kode: 'T006', nama: 'Fish Ball/Bakso', kategori: 'Topping', harga: 3000 },
-    { kode: 'T007', nama: 'Sosis/Nugget', kategori: 'Topping', harga: 4000 },
-    { kode: 'T008', nama: 'Fish Roll', kategori: 'Topping', harga: 6000 },
-    { kode: 'T009', nama: 'Telor Ceplok', kategori: 'Topping', harga: 5000 },
-    { kode: 'T010', nama: 'Telor Setengah Matang', kategori: 'Topping', harga: 5000 },
-    { kode: 'T011', nama: 'Telor Rebus', kategori: 'Topping', harga: 5000 },
-    { kode: 'T012', nama: 'Dumpling Cheese/Chicken', kategori: 'Topping', harga: 6000 },
+    { kode: 'D041', nama: 'Americano (Ice)', kategori: 'Minuman', harga: 7000 }
   ];
 
+  // ========================================================
+  // MASTER DATA 2: DAFTAR TOPPING KHUSUS (TABEL BARU)
+  // ========================================================
+  const daftarToppings = [
+    { nama: 'Siomay Kering/Lidah', harga: 3000 },
+    { nama: 'Mayo', harga: 3000 },
+    { nama: 'Pilus Cikur', harga: 3000 },
+    { nama: 'Keju Parut', harga: 3000 },
+    { nama: 'Chikuwa/Crabstick', harga: 3000 },
+    { nama: 'Fish Ball/Bakso', harga: 3000 },
+    { nama: 'Sosis/Nugget', harga: 4000 },
+    { nama: 'Fish Roll', harga: 6000 },
+    { nama: 'Telor Ceplok', harga: 5000 },
+    { nama: 'Telor Setengah Matang', harga: 5000 },
+    { nama: 'Telor Rebus', harga: 5000 },
+    { nama: 'Dumpling Cheese/Chicken', harga: 6000 }
+  ];
+
+  // 4. Proses Push Data Menu ke Supabase
   for (const item of daftarMenu) {
     await prisma.menu.create({
-      data: item,
+      data: {
+        kode: item.kode,
+        nama: item.nama,
+        kategori: item.kategori,
+        harga: item.harga,
+        status: 'Tersedia'
+      }
     });
   }
+  console.log(`🔹 Sukses mengimpor ${daftarMenu.length} items ke tabel Menu.`);
 
-  console.log(`✅ Berhasil menambahkan ${daftarMenu.length} menu ke database kasir!`);
+  // 5. Proses Push Data Topping Ke Tabel Khusus Supabase
+  for (const item of daftarToppings) {
+    await prisma.topping.create({
+      data: {
+        nama: item.nama,
+        harga: item.harga,
+        status: 'Tersedia'
+      }
+    });
+  }
+  console.log(`🔹 Sukses mengimpor ${daftarToppings.length} items ke tabel Topping.`);
+
+  console.log('✅ SEMUA DATA STRUKTUR POS INDORAMEN SUKSES DI-UPDATE!');
 }
 
 main()
   .catch((e) => {
-    console.error(e);
+    console.error('❌ Terjadi error:', e);
     process.exit(1);
   })
   .finally(async () => {
