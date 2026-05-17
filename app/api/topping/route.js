@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
-// 💡 PERBAIKAN: Hapus kurung kurawal {} pada import prisma
-import prisma from '@/lib/prisma'; 
+// 💡 PERBAIKAN: Menggunakan kembali kurung kurawal {} karena @/lib/prisma menggunakan Named Export
+import { prisma } from '@/lib/prisma'; 
 
 export async function GET() {
   try {
