@@ -21,16 +21,19 @@ export default function LayarKasirPage() {
     fetch('/api/menu')
       .then((res) => res.json())
       .then((data) => {
-        setMenus(data);
+        setMenus(Array.isArray(data) ? data : []);
         setLoading(false);
       })
       .catch(() => setLoading(false));
 
-    // --- 🟢 FETCH DATA TOPPING DARI DATABASE ---
+    // --- 🟢 FETCH DATA TOPPING DARI DATABASE (DENGAN PENGAMAN ARRAY) ---
     fetch('/api/topping')
       .then((res) => res.json())
-      .then((data) => setDaftarToppings(data))
-      .catch((err) => console.error("Gagal memuat topping:", err));
+      .then((data) => setDaftarToppings(Array.isArray(data) ? data : []))
+      .catch((err) => {
+        console.error("Gagal memuat topping:", err);
+        setDaftarToppings([]); // Fallback aman ke array kosong jika API error
+      });
   }, []);
 
   // Filter pencarian berdasarkan nama menu atau kategori
@@ -63,12 +66,15 @@ export default function LayarKasirPage() {
 
   // --- 🟢 FUNGSI UTAMA MEMASUKKAN MENU + TOURING KE KERANJANG ---
   const executeAddToCart = (menu, toppingsList = []) => {
+    // Pengaman: pastikan toppingsList selalu berupa array
+    const safeToppingsList = Array.isArray(toppingsList) ? toppingsList : [];
+
     // Membuat identifier unik untuk kombinasi menu + susunan topping tertentu
-    const toppingIdsString = toppingsList.map(t => t.id).sort().join(',');
+    const toppingIdsString = safeToppingsList.map(t => t.id).sort().join(',');
     const cartItemId = `${menu.id}-${toppingIdsString}`;
 
     // Hitung tambahan harga dari total topping yang dipilih
-    const totalHargaTopping = toppingsList.reduce((acc, t) => acc + Number(t.harga), 0);
+    const totalHargaTopping = safeToppingsList.reduce((acc, t) => acc + Number(t.harga), 0);
     const hargaFinalItem = Number(menu.harga) + totalHargaTopping;
 
     const existingItem = cart.find(item => item.cartItemId === cartItemId);
@@ -81,7 +87,7 @@ export default function LayarKasirPage() {
       setCart([...cart, { 
         ...menu, 
         cartItemId, // ID Unik keranjang
-        toppings: toppingsList, 
+        toppings: safeToppingsList, 
         hargaCustom: hargaFinalItem, // Menyimpan harga gabungan baru
         qty: 1 
       }]);
@@ -115,17 +121,21 @@ export default function LayarKasirPage() {
     const currentReceiptNumber = `TRX-${new Date().toISOString().slice(0,10).replace(/-/g,'')}-${Math.floor(1000 + Math.random() * 9000)}`;
     const currentTimestamp = new Date().toLocaleString('id-ID', { dateStyle: 'short', timeStyle: 'short' });
 
+    // --- 🛠️ FIX DATA MAPPING AGAR TIDAK CRASH ---
     const payload = {
       receiptNumber: currentReceiptNumber,
       timestamp: new Date().toISOString(),
-      items: cart.map(item => ({
-        id: item.id,
-        nama: item.toppings.length > 0 
-          ? `${item.nama} (+ ${item.toppings.map(t => t.nama).join(', ')})` 
-          : item.nama,
-        qty: item.qty,
-        harga: item.hargaCustom
-      })),
+      items: cart.map(item => {
+        const hasToppings = Array.isArray(item.toppings) && item.toppings.length > 0;
+        return {
+          id: item.id,
+          nama: hasToppings 
+            ? `${item.nama} (+ ${item.toppings.map(t => t.nama).join(', ')})` 
+            : item.nama,
+          qty: item.qty,
+          harga: item.hargaCustom
+        };
+      }),
       subtotal: totalBayar,
       pajak: 0,
       grandTotal: totalBayar
@@ -151,7 +161,7 @@ export default function LayarKasirPage() {
       
       alert(`🎉 Pembayaran Sukses!\nNomor Struk: ${currentReceiptNumber}`);
       
-      // 2. Beri jeda sepersekian milidetik agar DOM ter-render, lalu panggil print dialog
+      // 2. Beri jeda sejenak agar DOM ter-render, lalu panggil print dialog
       setTimeout(() => {
         window.print();
         // Clear isi keranjang setelah beres urusan cetak
@@ -243,7 +253,7 @@ export default function LayarKasirPage() {
                     <div 
                       key={menu.id} 
                       style={styles.menuCard}
-                      onClick={() => handleMenuClick(menu)} // --- 🟢 DIGANTI KE LOGIKA CEGAT POP-UP ---
+                      onClick={() => handleMenuClick(menu)} 
                       onMouseEnter={(e) => e.currentTarget.style.borderColor = '#2563eb'}
                       onMouseLeave={(e) => e.currentTarget.style.borderColor = '#e2e8f0'}
                     >
@@ -285,7 +295,7 @@ export default function LayarKasirPage() {
                       <div style={{ maxWidth: '180px' }}>
                         <h5 style={{ margin: '0 0 4px 0', fontSize: '13px', color: '#1e293b', fontWeight: 'bold' }}>{item.nama}</h5>
                         {/* --- 🟢 TAMPILKAN LIST TOPPING DI BAWAH NAMA ITEM --- */}
-                        {item.toppings.length > 0 && (
+                        {Array.isArray(item.toppings) && item.toppings.length > 0 && (
                           <div style={{ fontSize: '11px', color: '#ef4444', marginBottom: '4px', fontStyle: 'italic' }}>
                             + {item.toppings.map(t => t.nama).join(', ')}
                           </div>
@@ -295,6 +305,7 @@ export default function LayarKasirPage() {
                       <div style={styles.qtyControl}>
                         <button onClick={() => removeFromCart(item.cartItemId)} style={styles.btnQty}>-</button>
                         <span style={{ fontSize: '13px', fontWeight: 'bold', color: '#1e293b', minWidth: '16px', textAlign: 'center' }}>{item.qty}</span>
+                        {/* --- 🛠️ FIX TOMBOL TAMBAH (+) DI SIDEBAR AGAR MEMBAWA TOPPING ASLINYA --- */}
                         <button onClick={() => executeAddToCart(item, item.toppings)} style={styles.btnQty}>+</button>
                       </div>
                     </div>
@@ -325,7 +336,7 @@ export default function LayarKasirPage() {
         </div>
       </div>
 
-      {/* --- 🟢 5. UI MODAL POP-UP TOPPING (DENGAN TAMPILAN GELAP ELEGANT) --- */}
+      {/* --- 🟢 UI MODAL POP-UP TOPPING (DENGAN TAMPILAN GELAP ELEGANT) --- */}
       {isToppingModalOpen && (
         <div style={{
           position: 'fixed', inset: 0, zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -345,7 +356,7 @@ export default function LayarKasirPage() {
             {/* List Item Topping */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '280px', overflowY: 'auto', paddingRight: '4px' }}>
               {daftarToppings.length === 0 ? (
-                <div style={{ color: '#94a3b8', fontSize: '12px', textAlign: 'center', padding: '12px' }}>Memuat pilihan topping...</div>
+                <div style={{ color: '#94a3b8', fontSize: '12px', textAlign: 'center', padding: '12px' }}>Tidak ada pilihan topping atau sedang memuat...</div>
               ) : (
                 daftarToppings.map((topping) => {
                   const isChecked = selectedToppings.some(t => t.id === topping.id);
@@ -420,7 +431,7 @@ export default function LayarKasirPage() {
               <div key={index}>
                 <div style={{ fontWeight: 'bold' }}>
                   {item.nama}
-                  {item.toppings.length > 0 && (
+                  {Array.isArray(item.toppings) && item.toppings.length > 0 && (
                     <span style={{ fontSize: '10px', fontWeight: 'normal', display: 'block' }}>
                       * Topping: {item.toppings.map(t => t.nama).join(', ')}
                     </span>
