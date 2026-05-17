@@ -26,6 +26,11 @@ model Transaction {
   pajak         Float
   grandTotal    Float
   timestamp     DateTime @default(now())
+
+  // 💡 KOLOM TAMBAHAN BARU (Sudah aman diberi nilai @default agar tidak error migrasi):
+  orderType     String   @default("DINE_IN")        // Menyimpan: "DINE_IN" atau "TAKE_AWAY"
+  customerName  String   @default("Pelanggan Umum") // Menyimpan nama pelanggan
+  tableNumber   String?                             // Menyimpan nomor meja (opsional/boleh kosong)
 }
 
 // 💡 TABEL BARU: Master data topping sesuai brosur menu Indoramen

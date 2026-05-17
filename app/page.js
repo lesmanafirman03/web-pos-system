@@ -16,13 +16,18 @@ export default function LayarKasirPage() {
   const [daftarToppings, setDaftarToppings] = useState([]);
   const [selectedToppings, setSelectedToppings] = useState([]);
 
+  // --- 💡 STATE BARU UNTUK FITUR DINE IN / TAKE AWAY ---
+  const [orderType, setOrderType] = useState('DINE_IN'); // Default awal: Dine In
+  const [customerName, setCustomerName] = useState('');  // Input nama pelanggan
+  const [tableNumber, setTableNumber] = useState('');    // Input nomor meja
+
   // Ambil data menu dari API untuk ditampilkan di kasir
   useEffect(() => {
     fetch('/api/menu')
       .then((res) => res.json())
       .then((data) => {
         setMenus(Array.isArray(data) ? data : []);
-        setLoading(false);
+        setLoading(false)
       })
       .catch(() => setLoading(false));
 
@@ -114,6 +119,8 @@ export default function LayarKasirPage() {
   // Fungsi Simpan Transaksi (Bayar & Otomatis Cetak Struk)
   const handleCheckout = async () => {
     if (cart.length === 0) return alert("Keranjang masih kosong!");
+    if (!customerName.trim()) return alert("Nama pelanggan wajib diisi!");
+    if (orderType === 'DINE_IN' && !tableNumber.trim()) return alert("Nomor meja wajib diisi untuk makan di tempat!");
 
     const konfirmasi = confirm(`Total Belanja: Rp ${totalBayar.toLocaleString('id-ID')}\nProses pembayaran transaksi sekarang?`);
     if (!konfirmasi) return;
@@ -121,7 +128,7 @@ export default function LayarKasirPage() {
     const currentReceiptNumber = `TRX-${new Date().toISOString().slice(0,10).replace(/-/g,'')}-${Math.floor(1000 + Math.random() * 9000)}`;
     const currentTimestamp = new Date().toLocaleString('id-ID', { dateStyle: 'short', timeStyle: 'short' });
 
-    // --- 🛠️ FIX DATA MAPPING AGAR TIDAK CRASH ---
+    // --- 🛠️ MAPPING PAYLOAD DATABASE (Mendukung Struktur Kolom Baru) ---
     const payload = {
       receiptNumber: currentReceiptNumber,
       timestamp: new Date().toISOString(),
@@ -138,15 +145,21 @@ export default function LayarKasirPage() {
       }),
       subtotal: totalBayar,
       pajak: 0,
-      grandTotal: totalBayar
+      grandTotal: totalBayar,
+      orderType: orderType,
+      customerName: customerName,
+      tableNumber: orderType === 'DINE_IN' ? tableNumber : null
     };
 
-    // Amankan salinan data struk untuk template cetak sebelum cart di-reset
+    // Amankan salinan data struk untuk template cetak termasuk info pelanggan
     const infoStrukUntukDicetak = {
       receiptNumber: currentReceiptNumber,
       timestamp: currentTimestamp,
       items: [...cart],
-      total: totalBayar
+      total: totalBayar,
+      orderType: orderType,
+      customerName: customerName,
+      tableNumber: orderType === 'DINE_IN' ? tableNumber : ''
     };
 
     const res = await fetch('/api/transaction', {
@@ -164,8 +177,11 @@ export default function LayarKasirPage() {
       // 2. Beri jeda sejenak agar DOM ter-render, lalu panggil print dialog
       setTimeout(() => {
         window.print();
-        // Clear isi keranjang setelah beres urusan cetak
+        // Clear isi keranjang dan form setelah beres urusan cetak
         setCart([]);
+        setCustomerName('');
+        setTableNumber('');
+        setOrderType('DINE_IN');
       }, 300);
 
     } else {
@@ -183,12 +199,12 @@ export default function LayarKasirPage() {
     menuCard: { backgroundColor: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '16px', padding: '16px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', cursor: 'pointer', transition: 'all 0.2s', boxShadow: '0 2px 4px rgba(0,0,0,0.02)' },
     badge: { fontSize: '10px', fontWeight: 'bold', padding: '4px 8px', borderRadius: '6px', alignSelf: 'flex-start', marginBottom: '10px' },
     cartSidebar: { width: '380px', backgroundColor: '#ffffff', borderLeft: '1px solid #e2e8f0', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', padding: '24px', boxSizing: 'border-box' },
-    cartHeader: { borderBottom: '1px solid #f1f5f9', paddingBottom: '16px', marginBottom: '16px' },
+    cartHeader: { borderBottom: '1px solid #f1f5f9', paddingBottom: '16px', marginBottom: '12px' },
     cartList: { flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '12px' },
     cartItem: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#f8fafc', padding: '12px', borderRadius: '12px', border: '1px solid #f1f5f9' },
     qtyControl: { display: 'flex', alignItems: 'center', gap: '8px' },
     btnQty: { backgroundColor: '#ffffff', border: '1px solid #cbd5e1', color: '#1e293b', width: '28px', height: '28px', borderRadius: '8px', fontSize: '14px', fontWeight: 'bold', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' },
-    checkoutCard: { borderTop: '1px solid #f1f5f9', paddingTop: '16px', marginTop: '16px' },
+    checkoutCard: { borderTop: '1px solid #f1f5f9', paddingTop: '14px', marginTop: '12px' },
     btnCheckout: { width: '100%', backgroundColor: '#2563eb', color: '#ffffff', border: 'none', padding: '14px', borderRadius: '12px', fontSize: '15px', fontWeight: 'bold', cursor: 'pointer', marginTop: '12px', boxShadow: '0 4px 6px -1px rgba(37,99,235,0.2)' }
   };
 
@@ -275,24 +291,72 @@ export default function LayarKasirPage() {
 
           {/* PANEL KANAN: SIDEBAR KERANJANG BELANJA */}
           <div style={styles.cartSidebar}>
-            <div>
+            <div style={{ display: 'flex', flexDirection: 'column', flex: 1, overflowY: 'auto' }}>
               <div style={styles.cartHeader}>
                 <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 'bold', color: '#1e293b', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  👤 Pelanggan Umum
+                  🛒 Antrean Pesanan Aktif
                 </h3>
-                <p style={{ margin: '4px 0 0 0', fontSize: '12px', color: '#94a3b8' }}>Item dalam antrean pesanan aktif.</p>
+                <p style={{ margin: '4px 0 0 0', fontSize: '12px', color: '#94a3b8' }}>Sesuaikan detail pelanggan di bawah.</p>
               </div>
 
+              {/* 💡 INPUT FORM DINE IN / TAKE AWAY INTERAKTIF */}
+              <div style={{ marginBottom: '16px', backgroundColor: '#f8fafc', padding: '14px', borderRadius: '12px', border: '1px solid #e2e8f0', display: 'flex', flexDirection: 'column', gap: '12px', textAlign: 'left' }}>
+                <div>
+                  <label style={{ fontSize: '12px', fontWeight: 'bold', color: '#475569', display: 'block', marginBottom: '6px' }}>Metode Layanan:</label>
+                  <div style={{ display: 'flex', gap: '8px' }}>
+                    <button 
+                      type="button"
+                      style={{ flex: 1, padding: '8px', borderRadius: '8px', fontSize: '12px', fontWeight: 'bold', border: 'none', cursor: 'pointer', backgroundColor: orderType === 'DINE_IN' ? '#ef4444' : '#cbd5e1', color: orderType === 'DINE_IN' ? '#ffffff' : '#475569', transition: 'all 0.2s' }}
+                      onClick={() => setOrderType('DINE_IN')}
+                    >
+                      Makan Sini
+                    </button>
+                    <button 
+                      type="button"
+                      style={{ flex: 1, padding: '8px', borderRadius: '8px', fontSize: '12px', fontWeight: 'bold', border: 'none', cursor: 'pointer', backgroundColor: orderType === 'TAKE_AWAY' ? '#ef4444' : '#cbd5e1', color: orderType === 'TAKE_AWAY' ? '#ffffff' : '#475569', transition: 'all 0.2s' }}
+                      onClick={() => setOrderType('TAKE_AWAY')}
+                    >
+                      Dibungkus
+                    </button>
+                  </div>
+                </div>
+
+                <div>
+                  <label style={{ fontSize: '12px', fontWeight: 'bold', color: '#475569', display: 'block', marginBottom: '4px' }}>Atas Nama *</label>
+                  <input 
+                    type="text" 
+                    placeholder="Nama pelanggan..."
+                    value={customerName}
+                    onChange={(e) => setCustomerName(e.target.value)}
+                    style={{ width: '100%', padding: '8px 12px', border: '1px solid #cbd5e1', borderRadius: '8px', fontSize: '13px', outline: 'none', boxSizing: 'border-box' }}
+                  />
+                </div>
+
+                {orderType === 'DINE_IN' && (
+                  <div>
+                    <label style={{ fontSize: '12px', fontWeight: 'bold', color: '#475569', display: 'block', marginBottom: '4px' }}>Nomor Meja *</label>
+                    <input 
+                      type="text" 
+                      placeholder="Contoh: Meja 05"
+                      value={tableNumber}
+                      onChange={(e) => setTableNumber(e.target.value)}
+                      style={{ width: '100%', padding: '8px 12px', border: '1px solid #cbd5e1', borderRadius: '8px', fontSize: '13px', outline: 'none', boxSizing: 'border-box' }}
+                    />
+                  </div>
+                )}
+              </div>
+
+              {/* List Item Keranjang */}
               <div style={styles.cartList}>
                 {cart.length === 0 ? (
-                  <div style={{ textAlign: 'center', padding: '60px 0', color: '#94a3b8' }}>
-                    <div style={{ fontSize: '32px', marginBottom: '8px' }}>🛒</div>
+                  <div style={{ textAlign: 'center', padding: '40px 0', color: '#94a3b8' }}>
+                    <div style={{ fontSize: '32px', marginBottom: '8px' }}>🍜</div>
                     <span style={{ fontSize: '13px', fontStyle: 'italic' }}>Keranjang masih kosong</span>
                   </div>
                 ) : (
                   cart.map((item) => (
                     <div key={item.cartItemId} style={styles.cartItem}>
-                      <div style={{ maxWidth: '180px' }}>
+                      <div style={{ maxWidth: '180px', textAlign: 'left' }}>
                         <h5 style={{ margin: '0 0 4px 0', fontSize: '13px', color: '#1e293b', fontWeight: 'bold' }}>{item.nama}</h5>
                         {/* --- 🟢 TAMPILKAN LIST TOPPING DI BAWAH NAMA ITEM --- */}
                         {Array.isArray(item.toppings) && item.toppings.length > 0 && (
@@ -409,7 +473,7 @@ export default function LayarKasirPage() {
         </div>
       )}
 
-      {/* 📑 STRUK TERSEMBUNYI */}
+      {/* 📑 STRUK TERSEMBUNYI (Otomatis Menampilkan Info Dine In/Take Away & Nama) */}
       {activeReceipt && (
         <div id="thermal-receipt-area" style={{ fontSize: '12px', lineHeight: '1.2' }}>
           <div style={{ textAlign: 'center', marginBottom: '10px' }}>
@@ -420,16 +484,24 @@ export default function LayarKasirPage() {
           </div>
           
           <div style={{ marginBottom: '8px', fontSize: '11px' }}>
-            <div>No. Struk: {activeReceipt.receiptNumber}</div>
+            <div>No. Struk : {activeReceipt.receiptNumber}</div>
             <div>Tanggal  : {activeReceipt.timestamp}</div>
-            <div>Kasir    : Pelanggan Umum</div>
+            
+            {/* 💡 SUNTIKAN INFO PELANGGAN TERBARU PADA STRUK PRINT */}
+            <div>Layanan  : {activeReceipt.orderType === 'DINE_IN' ? 'DINE IN (MAKAN SINI)' : 'TAKE AWAY (BUNGKUS)'}</div>
+            <div>Pelanggan: {activeReceipt.customerName}</div>
+            {activeReceipt.orderType === 'DINE_IN' && (
+              <div>No. Meja : {activeReceipt.tableNumber}</div>
+            )}
+            
+            <div>Kasir    : Staff Kasir</div>
             <p style={{ margin: '5px 0 0 0' }}>--------------------------------</p>
           </div>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', fontSize: '11px' }}>
             {activeReceipt.items.map((item, index) => (
               <div key={index}>
-                <div style={{ fontWeight: 'bold' }}>
+                <div style={{ fontWeight: 'bold', textAlign: 'left' }}>
                   {item.nama}
                   {Array.isArray(item.toppings) && item.toppings.length > 0 && (
                     <span style={{ fontSize: '10px', fontWeight: 'normal', display: 'block' }}>
