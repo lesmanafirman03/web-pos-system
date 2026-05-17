@@ -3,25 +3,45 @@
 @tailwind utilities;
 
 @media print {
-  /* Sembunyikan semua elemen di layar kecuali area struk */
+  /* 1. Atur ukuran fisik kertas thermal 58mm secara tegas ke browser */
+  @page {
+    size: 58mm auto; /* Lebar 58mm tetap, panjang kertas otomatis mengikuti teks */
+    margin: 0 !important; /* Hilangkan teks tanggal, judul, dan URL bawaan browser */
+  }
+
+  /* 2. Sembunyikan TOTAL seluruh elemen halaman aplikasi */
   body * {
     visibility: hidden;
+    margin: 0;
+    padding: 0;
   }
+
+  /* 3. Tampilkan KEMBALI hanya area struk dan anak-anak elemen di dalamnya */
   #printable-receipt, #printable-receipt * {
     visibility: visible;
   }
+
+  /* 4. Paksa container struk mengambil posisi paling pojok kiri atas kertas */
   #printable-receipt {
     position: absolute;
     left: 0;
     top: 0;
-    width: 58mm; /* Sesuaikan ke 80mm jika menggunakan printer besar */
+    width: 58mm !important;      /* Mengunci lebar struk tepat 58mm */
+    max-width: 58mm !important;
+    padding: 2mm 3mm !important;  /* Beri jarak aman kecil di kanan-kiri agar tidak mepet besi pemotong */
+    box-sizing: border-box;
+    
+    /* Tipografi Khas Kasir */
     font-family: 'Courier New', Courier, monospace;
     font-size: 11px;
-    line-height: 1.2;
+    line-height: 1.3;
     color: #000;
+    background: #fff;
   }
-  /* Hapus margin halaman default browser (header/footer tanggal & URL) */
-  @page {
-    margin: 0;
+
+  /* 5. Opsional: Pastikan teks garis putus-putus pembatas (---) tidak meluber */
+  #printable-receipt hr, 
+  #printable-receipt .border-dashed {
+    border-color: #000 !important;
   }
 }
