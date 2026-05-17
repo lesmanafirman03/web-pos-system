@@ -10,6 +10,12 @@ export default function LayarKasirPage() {
   // State tambahan untuk menyimpan info struk yang sedang dicetak
   const [activeReceipt, setActiveReceipt] = useState(null);
 
+  // --- 🟢 STATE BARU UNTUK INTEGRASI POP-UP TOPPING ---
+  const [isToppingModalOpen, setIsToppingModalOpen] = useState(false);
+  const [selectedMenu, setSelectedMenu] = useState(null);
+  const [daftarToppings, setDaftarToppings] = useState([]);
+  const [selectedToppings, setSelectedToppings] = useState([]);
+
   // Ambil data menu dari API untuk ditampilkan di kasir
   useEffect(() => {
     fetch('/api/menu')
@@ -19,6 +25,12 @@ export default function LayarKasirPage() {
         setLoading(false);
       })
       .catch(() => setLoading(false));
+
+    // --- 🟢 FETCH DATA TOPPING DARI DATABASE ---
+    fetch('/api/topping')
+      .then((res) => res.json())
+      .then((data) => setDaftarToppings(data))
+      .catch((err) => console.error("Gagal memuat topping:", err));
   }, []);
 
   // Filter pencarian berdasarkan nama menu atau kategori
@@ -27,34 +39,71 @@ export default function LayarKasirPage() {
     menu.kategori.toLowerCase().includes(search.toLowerCase())
   );
 
-  // Fungsi Tambah ke Keranjang
-  const addToCart = (menu) => {
-    const existingItem = cart.find(item => item.id === menu.id);
+  // --- 🟢 LOGIKA CEGAT MENU KETIKA DIKLIK ---
+  const handleMenuClick = (menu) => {
+    if (menu.kategori === 'Makanan') {
+      setSelectedMenu(menu);
+      setSelectedToppings([]); // Reset pilihan topping sebelumnya
+      setIsToppingModalOpen(true); // Buka pop-up modal
+    } else {
+      // Jika minuman atau cemilan, langsung masuk keranjang tanpa topping
+      executeAddToCart(menu, []);
+    }
+  };
+
+  // --- 🟢 TOGGLE SELEKSI CHECKBOX TOPPING ---
+  const handleToppingToggle = (topping) => {
+    const exists = selectedToppings.find(t => t.id === topping.id);
+    if (exists) {
+      setSelectedToppings(selectedToppings.filter(t => t.id !== topping.id));
+    } else {
+      setSelectedToppings([...selectedToppings, topping]);
+    }
+  };
+
+  // --- 🟢 FUNGSI UTAMA MEMASUKKAN MENU + TOURING KE KERANJANG ---
+  const executeAddToCart = (menu, toppingsList = []) => {
+    // Membuat identifier unik untuk kombinasi menu + susunan topping tertentu
+    const toppingIdsString = toppingsList.map(t => t.id).sort().join(',');
+    const cartItemId = `${menu.id}-${toppingIdsString}`;
+
+    // Hitung tambahan harga dari total topping yang dipilih
+    const totalHargaTopping = toppingsList.reduce((acc, t) => acc + Number(t.harga), 0);
+    const hargaFinalItem = Number(menu.harga) + totalHargaTopping;
+
+    const existingItem = cart.find(item => item.cartItemId === cartItemId);
+    
     if (existingItem) {
       setCart(cart.map(item => 
-        item.id === menu.id ? { ...item, qty: item.qty + 1 } : item
+        item.cartItemId === cartItemId ? { ...item, qty: item.qty + 1 } : item
       ));
     } else {
-      setCart([...cart, { ...menu, qty: 1 }]);
+      setCart([...cart, { 
+        ...menu, 
+        cartItemId, // ID Unik keranjang
+        toppings: toppingsList, 
+        hargaCustom: hargaFinalItem, // Menyimpan harga gabungan baru
+        qty: 1 
+      }]);
     }
   };
 
   // Fungsi Kurangi/Hapus dari Keranjang
-  const removeFromCart = (id) => {
-    const existingItem = cart.find(item => item.id === id);
+  const removeFromCart = (cartItemId) => {
+    const existingItem = cart.find(item => item.cartItemId === cartItemId);
     if (!existingItem) return;
     
     if (existingItem.qty === 1) {
-      setCart(cart.filter(item => item.id !== id));
+      setCart(cart.filter(item => item.cartItemId !== cartItemId));
     } else {
       setCart(cart.map(item => 
-        item.id === id ? { ...item, qty: item.qty - 1 } : item
+        item.cartItemId === cartItemId ? { ...item, qty: item.qty - 1 } : item
       ));
     }
   };
 
-  // Hitung Total Belanja
-  const totalBayar = cart.reduce((acc, item) => acc + (item.harga * item.qty), 0);
+  // Hitung Total Belanja (Membaca dari properti hargaCustom yang baru)
+  const totalBayar = cart.reduce((acc, item) => acc + (item.hargaCustom * item.qty), 0);
 
   // Fungsi Simpan Transaksi (Bayar & Otomatis Cetak Struk)
   const handleCheckout = async () => {
@@ -71,12 +120,14 @@ export default function LayarKasirPage() {
       timestamp: new Date().toISOString(),
       items: cart.map(item => ({
         id: item.id,
-        nama: item.nama,
+        nama: item.toppings.length > 0 
+          ? `${item.nama} (+ ${item.toppings.map(t => t.nama).join(', ')})` 
+          : item.nama,
         qty: item.qty,
-        harga: item.harga
+        harga: item.hargaCustom
       })),
       subtotal: totalBayar,
-      pajak: 0, // Set 0 jika tidak digunakan di backend
+      pajak: 0,
       grandTotal: totalBayar
     };
 
@@ -192,7 +243,7 @@ export default function LayarKasirPage() {
                     <div 
                       key={menu.id} 
                       style={styles.menuCard}
-                      onClick={() => addToCart(menu)}
+                      onClick={() => handleMenuClick(menu)} // --- 🟢 DIGANTI KE LOGIKA CEGAT POP-UP ---
                       onMouseEnter={(e) => e.currentTarget.style.borderColor = '#2563eb'}
                       onMouseLeave={(e) => e.currentTarget.style.borderColor = '#e2e8f0'}
                     >
@@ -230,15 +281,21 @@ export default function LayarKasirPage() {
                   </div>
                 ) : (
                   cart.map((item) => (
-                    <div key={item.id} style={styles.cartItem}>
+                    <div key={item.cartItemId} style={styles.cartItem}>
                       <div style={{ maxWidth: '180px' }}>
                         <h5 style={{ margin: '0 0 4px 0', fontSize: '13px', color: '#1e293b', fontWeight: 'bold' }}>{item.nama}</h5>
-                        <span style={{ fontSize: '12px', color: '#64748b', fontWeight: 'bold' }}>Rp {(item.harga * item.qty).toLocaleString('id-ID')}</span>
+                        {/* --- 🟢 TAMPILKAN LIST TOPPING DI BAWAH NAMA ITEM --- */}
+                        {item.toppings.length > 0 && (
+                          <div style={{ fontSize: '11px', color: '#ef4444', marginBottom: '4px', fontStyle: 'italic' }}>
+                            + {item.toppings.map(t => t.nama).join(', ')}
+                          </div>
+                        )}
+                        <span style={{ fontSize: '12px', color: '#64748b', fontWeight: 'bold' }}>Rp {(item.hargaCustom * item.qty).toLocaleString('id-ID')}</span>
                       </div>
                       <div style={styles.qtyControl}>
-                        <button onClick={() => removeFromCart(item.id)} style={styles.btnQty}>-</button>
+                        <button onClick={() => removeFromCart(item.cartItemId)} style={styles.btnQty}>-</button>
                         <span style={{ fontSize: '13px', fontWeight: 'bold', color: '#1e293b', minWidth: '16px', textAlign: 'center' }}>{item.qty}</span>
-                        <button onClick={() => addToCart(item)} style={styles.btnQty}>+</button>
+                        <button onClick={() => executeAddToCart(item, item.toppings)} style={styles.btnQty}>+</button>
                       </div>
                     </div>
                   ))
@@ -268,7 +325,80 @@ export default function LayarKasirPage() {
         </div>
       </div>
 
-      {/* 📑 STRUK TERSEMBUNYI (Properti display: none di inline style telah dilepas agar bisa dibaca window.print) */}
+      {/* --- 🟢 5. UI MODAL POP-UP TOPPING (DENGAN TAMPILAN GELAP ELEGANT) --- */}
+      {isToppingModalOpen && (
+        <div style={{
+          position: 'fixed', inset: 0, zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center',
+          backgroundColor: 'rgba(0, 0, 0, 0.6)', backdropFilter: 'blur(4px)'
+        }}>
+          <div style={{
+            backgroundColor: '#1e293b', color: '#ffffff', width: '100%', maxWidth: '420px',
+            borderRadius: '16px', padding: '24px', boxShadow: '0 20px 25px -5px rgba(0,0,0,0.3)', fontFamily: 'Arial, sans-serif'
+          }}>
+            <h3 style={{ margin: '0 0 4px 0', fontSize: '16px', fontWeight: 'bold', color: '#f8fafc' }}>
+              🍜 Tambah Topping Terbaik
+            </h3>
+            <p style={{ margin: '0 0 16px 0', fontSize: '13px', color: '#94a3b8' }}>
+              Pilihan ekstra untuk: <strong style={{ color: '#f59e0b' }}>{selectedMenu?.nama}</strong>
+            </p>
+            
+            {/* List Item Topping */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '280px', overflowY: 'auto', paddingRight: '4px' }}>
+              {daftarToppings.length === 0 ? (
+                <div style={{ color: '#94a3b8', fontSize: '12px', textAlign: 'center', padding: '12px' }}>Memuat pilihan topping...</div>
+              ) : (
+                daftarToppings.map((topping) => {
+                  const isChecked = selectedToppings.some(t => t.id === topping.id);
+                  return (
+                    <label 
+                      key={topping.id} 
+                      style={{
+                        display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px',
+                        borderRadius: '10px', border: isChecked ? '1px solid #3b82f6' : '1px solid #334155',
+                        backgroundColor: isChecked ? '#1e3a8a' : '#0f172a', cursor: 'pointer', transition: 'all 0.2s'
+                      }}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                        <input 
+                          type="checkbox" 
+                          checked={isChecked}
+                          onChange={() => handleToppingToggle(topping)}
+                          style={{ width: '16px', height: '16px', cursor: 'pointer' }} 
+                        />
+                        <span style={{ fontSize: '13px', fontWeight: '500' }}>{topping.nama}</span>
+                      </div>
+                      <span style={{ fontSize: '12px', color: isChecked ? '#60a5fa' : '#94a3b8', fontWeight: 'bold' }}>
+                        +Rp {Number(topping.harga).toLocaleString('id-ID')}
+                      </span>
+                    </label>
+                  );
+                })
+              )}
+            </div>
+
+            {/* Tombol Footer Pop-up */}
+            <div style={{ display: 'flex', gap: '12px', justifyContent: 'end', marginTop: '20px', borderTop: '1px solid #334155', paddingTop: '16px' }}>
+              <button 
+                onClick={() => setIsToppingModalOpen(false)}
+                style={{ backgroundColor: '#334155', color: '#cbd5e1', border: 'none', padding: '10px 16px', borderRadius: '8px', fontSize: '13px', fontWeight: 'bold', cursor: 'pointer' }}
+              >
+                Batal
+              </button>
+              <button 
+                onClick={() => {
+                  executeAddToCart(selectedMenu, selectedToppings);
+                  setIsToppingModalOpen(false);
+                }}
+                style={{ backgroundColor: '#2563eb', color: '#ffffff', border: 'none', padding: '10px 18px', borderRadius: '8px', fontSize: '13px', fontWeight: 'bold', cursor: 'pointer', boxShadow: '0 4px 6px -1px rgba(37,99,235,0.4)' }}
+              >
+                Masukkan Keranjang
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 📑 STRUK TERSEMBUNYI */}
       {activeReceipt && (
         <div id="thermal-receipt-area" style={{ fontSize: '12px', lineHeight: '1.2' }}>
           <div style={{ textAlign: 'center', marginBottom: '10px' }}>
@@ -288,10 +418,17 @@ export default function LayarKasirPage() {
           <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', fontSize: '11px' }}>
             {activeReceipt.items.map((item, index) => (
               <div key={index}>
-                <div style={{ fontWeight: 'bold' }}>{item.nama}</div>
+                <div style={{ fontWeight: 'bold' }}>
+                  {item.nama}
+                  {item.toppings.length > 0 && (
+                    <span style={{ fontSize: '10px', fontWeight: 'normal', display: 'block' }}>
+                      * Topping: {item.toppings.map(t => t.nama).join(', ')}
+                    </span>
+                  )}
+                </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                  <span>{item.qty} x Rp {item.harga.toLocaleString('id-ID')}</span>
-                  <span>Rp {(item.harga * item.qty).toLocaleString('id-ID')}</span>
+                  <span>{item.qty} x Rp {item.hargaCustom.toLocaleString('id-ID')}</span>
+                  <span>Rp {(item.hargaCustom * item.qty).toLocaleString('id-ID')}</span>
                 </div>
               </div>
             ))}
