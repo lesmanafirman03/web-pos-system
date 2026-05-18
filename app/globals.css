@@ -2,6 +2,11 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Perbaikan reset global untuk layar normal */
+body {
+  @apply bg-[#f3f4f9] text-[#0f172a];
+}
+
 @media print {
   /* 1. Atur ukuran fisik kertas thermal 58mm secara tegas ke browser */
   @page {
@@ -31,17 +36,20 @@
     padding: 2mm 3mm !important;  /* Beri jarak aman kecil di kanan-kiri agar tidak mepet besi pemotong */
     box-sizing: border-box;
     
-    /* Tipografi Khas Kasir */
+    /* Tipografi Khas Kasir Kasur */
     font-family: 'Courier New', Courier, monospace;
     font-size: 11px;
     line-height: 1.3;
-    color: #000;
-    background: #fff;
+    color: #000 !important;       /* Memastikan warna teks hitam pekat saat dicetak */
+    background: #fff !important;    /* Memastikan latar belakang putih bersih kertas */
+    -webkit-print-color-adjust: exact; /* Paksa browser mempertahankan warna hitam/putih asli */
+    print-color-adjust: exact;
   }
 
-  /* 5. Opsional: Pastikan teks garis putus-putus pembatas (---) tidak meluber */
+  /* 5. Pastikan teks garis putus-putus pembatas (---) tidak meluber dan terlihat jelas */
   #printable-receipt hr, 
   #printable-receipt .border-dashed {
     border-color: #000 !important;
+    border-style: dashed !important;
   }
 }
