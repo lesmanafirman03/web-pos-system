@@ -3,7 +3,7 @@
 import { usePathname } from 'next/navigation';
 import Link from 'next/link';
 import { Geist, Geist_Mono } from "next/font/google";
-import "./globals.css";
+import "@/app/globals.css"; // 👈 DIPERBAIKI: Menggunakan path absolut agar Tailwind ter-load dengan aman!
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
